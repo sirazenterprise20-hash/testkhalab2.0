@@ -202,6 +202,57 @@ export default function AdminPanel({
     }
   };
 
+  const handleLogoFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 15 * 1024 * 1024) {
+        alert("Image should be under 15MB.");
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        if (typeof reader.result === 'string') {
+          setWebsiteLogoUrl(reader.result);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleHeroFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 15 * 1024 * 1024) {
+        alert("Image should be under 15MB.");
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        if (typeof reader.result === 'string') {
+          setHeroImage(reader.result);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handlePromoFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 15 * 1024 * 1024) {
+        alert("Image should be under 15MB.");
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        if (typeof reader.result === 'string') {
+          setPromoBannerImage(reader.result);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleProductSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!pCategory) {
@@ -995,12 +1046,47 @@ export default function AdminPanel({
                     />
                   </div>
                   <div>
-                    <label className="text-[10px] font-bold text-gray-500 block mb-1">WEBSITE LOGO IMAGE URL (LEAVE BLANK FOR TEXT LOGO)</label>
+                    <label className="text-[10px] font-bold text-gray-500 block mb-1">WEBSITE LOGO IMAGE (SELECT FILE OR PASTE URL)</label>
+                    <div className="flex gap-4 items-center bg-gray-50 p-2 border border-gray-100 rounded-xl mb-2">
+                      {websiteLogoUrl ? (
+                        <div className="relative group w-12 h-12 bg-white rounded border overflow-hidden flex-shrink-0 flex items-center justify-center">
+                          <img
+                            src={websiteLogoUrl}
+                            alt=""
+                            className="max-w-full max-h-full object-contain"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setWebsiteLogoUrl('')}
+                            className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white transition-opacity duration-150 cursor-pointer text-[9px] font-bold"
+                          >
+                            Reset
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="w-12 h-12 bg-gray-100 rounded border border-dashed border-gray-300 flex items-center justify-center flex-shrink-0 text-gray-400">
+                          <Image className="w-4 h-4" />
+                        </div>
+                      )}
+                      <div className="flex-1 space-y-1">
+                        <label className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-gray-900 hover:bg-[var(--primary)] hover:text-black text-white text-[9px] font-bold font-mono tracking-wider rounded cursor-pointer transition-colors">
+                          <Plus className="w-3 h-3" />
+                          <span>SELECT FILE</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={handleLogoFileChange}
+                            className="hidden"
+                          />
+                        </label>
+                        <p className="text-[8px] text-gray-400 leading-none">Accepts JPG, PNG, WEBP files.</p>
+                      </div>
+                    </div>
                     <input
                       type="text"
                       value={websiteLogoUrl}
                       onChange={(e) => setWebsiteLogoUrl(e.target.value)}
-                      placeholder="https://..."
+                      placeholder="https://... or base64 data"
                       className="w-full bg-white border border-gray-200 rounded-lg p-2.5 text-xs font-mono focus:ring-1 focus:ring-[var(--primary)] outline-none"
                     />
                   </div>
@@ -1029,13 +1115,49 @@ export default function AdminPanel({
                         className="w-full bg-white border border-gray-200 rounded-lg p-2.5 text-xs focus:ring-1 focus:ring-[var(--primary)] outline-none"
                       />
                     </div>
-                    <div>
-                      <label className="text-[10px] font-bold text-gray-500 block mb-1">HERO IMAGE BACKGROUND URL</label>
+                    <div className="md:col-span-2">
+                      <label className="text-[10px] font-bold text-gray-500 block mb-1">HERO IMAGE BACKGROUND (SELECT FILE OR PASTE URL) *</label>
+                      <div className="flex gap-4 items-center bg-gray-50 p-2.5 border border-gray-100 rounded-xl mb-2">
+                        {heroImage ? (
+                          <div className="relative group w-20 h-12 bg-white rounded border overflow-hidden flex-shrink-0">
+                            <img
+                              src={heroImage}
+                              alt=""
+                              className="w-full h-full object-cover"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setHeroImage('')}
+                              className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white transition-opacity duration-150 cursor-pointer text-[9px] font-bold"
+                            >
+                              Reset
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="w-20 h-12 bg-gray-100 rounded border border-dashed border-gray-300 flex items-center justify-center flex-shrink-0 text-gray-400">
+                            <Image className="w-4 h-4" />
+                          </div>
+                        )}
+                        <div className="flex-1 space-y-1">
+                          <label className="inline-flex items-center gap-1 px-3 py-1.5 bg-gray-900 hover:bg-[var(--primary)] hover:text-black text-white text-[9px] font-bold font-mono tracking-wider rounded cursor-pointer transition-colors">
+                            <Plus className="w-3 h-3" />
+                            <span>SELECT HERO BG</span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={handleHeroFileChange}
+                              className="hidden"
+                            />
+                          </label>
+                          <p className="text-[8px] text-gray-400 leading-none">Cover photo size (JPG, WEBP).</p>
+                        </div>
+                      </div>
                       <input
                         type="text"
                         required
                         value={heroImage}
                         onChange={(e) => setHeroImage(e.target.value)}
+                        placeholder="https://... or base64 data"
                         className="w-full bg-white border border-gray-200 rounded-lg p-2.5 text-xs font-mono focus:ring-1 focus:ring-[var(--primary)] outline-none"
                       />
                     </div>
@@ -1084,11 +1206,47 @@ export default function AdminPanel({
                       />
                     </div>
                     <div className="md:col-span-2">
-                      <label className="text-[10px] font-bold text-gray-500 block mb-1">PROMO IMAGE BANNER URL</label>
+                      <label className="text-[10px] font-bold text-gray-500 block mb-1">PROMO IMAGE BANNER (SELECT FILE OR PASTE URL)</label>
+                      <div className="flex gap-4 items-center bg-gray-50 p-2.5 border border-gray-100 rounded-xl mb-2">
+                        {promoBannerImage ? (
+                          <div className="relative group w-20 h-12 bg-white rounded border overflow-hidden flex-shrink-0">
+                            <img
+                              src={promoBannerImage}
+                              alt=""
+                              className="w-full h-full object-cover"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setPromoBannerImage('')}
+                              className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white transition-opacity duration-150 cursor-pointer text-[9px] font-bold"
+                            >
+                              Reset
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="w-20 h-12 bg-gray-100 rounded border border-dashed border-gray-300 flex items-center justify-center flex-shrink-0 text-gray-400">
+                            <Image className="w-4 h-4" />
+                          </div>
+                        )}
+                        <div className="flex-1 space-y-1">
+                          <label className="inline-flex items-center gap-1 px-3 py-1.5 bg-gray-900 hover:bg-[var(--primary)] hover:text-black text-white text-[9px] font-bold font-mono tracking-wider rounded cursor-pointer transition-colors">
+                            <Plus className="w-3 h-3" />
+                            <span>SELECT PROMO BANNER</span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={handlePromoFileChange}
+                              className="hidden"
+                            />
+                          </label>
+                          <p className="text-[8px] text-gray-400 leading-none">Landscape layout (JPG, PNG, WEBP).</p>
+                        </div>
+                      </div>
                       <input
                         type="text"
                         value={promoBannerImage}
                         onChange={(e) => setPromoBannerImage(e.target.value)}
+                        placeholder="https://... or base64 data"
                         className="w-full bg-white border border-gray-200 rounded-lg p-2.5 text-xs font-mono focus:ring-1 focus:ring-[var(--primary)] outline-none"
                       />
                     </div>
