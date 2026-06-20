@@ -1,0 +1,97 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "User profile registered via phone number after placing their first order.",
+      "type": "object",
+      "properties": {
+        "phone": {
+          "type": "string",
+          "description": "User's unique phone number which acts as their login key."
+        },
+        "name": {
+          "type": "string",
+          "description": "Display name of the user."
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "User's optional email address."
+        },
+        "address": {
+          "type": "string",
+          "description": "User's default delivery address."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Profile registration timestamp."
+        }
+      },
+      "required": ["phone", "name", "createdAt"]
+    },
+    "Order": {
+      "title": "Customer Order",
+      "description": "A purchase order placed by a customer.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique Order ID."
+        },
+        "customerPhone": {
+          "type": "string",
+          "description": "The customer's phone number."
+        },
+        "customerName": {
+          "type": "string",
+          "description": "The customer's name at purchase."
+        },
+        "customerAddress": {
+          "type": "string",
+          "description": "The delivery address."
+        },
+        "paymentMethod": {
+          "type": "string",
+          "description": "COD or other payment methods."
+        },
+        "paymentStatus": {
+          "type": "string",
+          "description": "Payment status of the order."
+        },
+        "deliveryStatus": {
+          "type": "string",
+          "description": "Current dispatch progress state."
+        },
+        "totalAmount": {
+          "type": "number",
+          "description": "Total payable amount."
+        },
+        "discountAmount": {
+          "type": "number",
+          "description": "Discount applied."
+        },
+        "items": {
+          "type": "array",
+          "description": "List of clothing items purchased."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Order placement timestamp."
+        }
+      },
+      "required": ["id", "customerPhone", "customerName", "customerAddress", "paymentMethod", "totalAmount", "createdAt"]
+    }
+  },
+  "firestore": {
+    "users": {
+      "schema": "User",
+      "description": "Registered customer accounts keyed by phone number."
+    },
+    "orders": {
+      "schema": "Order",
+      "description": "Purchased orders placed by customers, indexed by Order ID."
+    }
+  }
+}

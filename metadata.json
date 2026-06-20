@@ -1,0 +1,8 @@
+{
+  "name": "KHALAB",
+  "description": "Full-stack clothing e-commerce website with real-time inventory, secure multi-methods checkout, review system, and a robust admin panel.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
