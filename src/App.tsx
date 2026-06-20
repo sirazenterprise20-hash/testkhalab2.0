@@ -339,7 +339,7 @@ export default function App() {
   // Push notifications queue state
   const [notifications, setNotifications] = useState<{ id: string; title: string; message: string; type: 'success' | 'info' | 'promo' }[]>([]);
 
-  // Fetch initial database items from Express REST APIs and direct Firestore as absolute backup
+  // Fetch initial database items from Express REST APIs
   const fetchAllData = async () => {
     const safeFetch = async (url: string) => {
       try {
@@ -357,20 +357,7 @@ export default function App() {
     };
 
     try {
-      // 1. Fetch from Firestore first for robust persistent storage
-      const [fireConfig, fireProducts, fireCatalogs, firePromos, fireFakes, fireReviews] = await Promise.all([
-        getSiteConfigFromFirebase(),
-        getProductsFromFirebase(),
-        getCatalogsFromFirebase(),
-        getPromosFromFirebase(),
-        getFakeCustomersFromFirebase(),
-        getReviewsFromFirebase()
-      ]).catch(e => {
-        console.warn("Firestore collection loading failure, using local rest apis fallback:", e);
-        return [null, null, null, null, null, null];
-      });
-
-      // 2. Fetch from standard local REST server APIs
+      // Fetch from standard local REST server APIs (coordinated with Cloud Firestore on startup & mutation)
       const [resConfig, resProducts, resCatalogs, resOrders, resReviews, resPromos, resFakes] = await Promise.all([
         safeFetch('/api/config'),
         safeFetch('/api/products'),
@@ -381,100 +368,50 @@ export default function App() {
         safeFetch('/api/fake-customers')
       ]);
 
-      // --- 3. MERGE STATE / PRIORITIZE FIRESTORE WITH BACKUP REST FALLBACKS ---
-      
       // CONFIG
-      const activeConfig = fireConfig || resConfig;
-      if (activeConfig) {
-        setConfig(activeConfig);
-        localStorage.setItem('khalab_site_config', JSON.stringify(activeConfig));
+      if (resConfig) {
+        setConfig(resConfig);
+        localStorage.setItem('khalab_site_config', JSON.stringify(resConfig));
       }
 
       // PRODUCTS
-      let activeProducts = products;
-      if (fireProducts && fireProducts.length > 0) {
-        activeProducts = fireProducts;
-      } else if (resProducts && resProducts.length > 0) {
-        activeProducts = resProducts;
-        // On first boot, synchronize default items to firestore so they are backed up
-        resProducts.forEach(async (p) => {
-          await saveProductToFirebase(p);
-        });
-      }
-      if (activeProducts && activeProducts.length > 0) {
-        setProducts(activeProducts);
-        localStorage.setItem('khalab_products', JSON.stringify(activeProducts));
+      if (resProducts && resProducts.length > 0) {
+        setProducts(resProducts);
+        localStorage.setItem('khalab_products', JSON.stringify(resProducts));
       }
 
       // CATALOGS
-      let activeCatalogs = catalogs;
-      if (fireCatalogs && fireCatalogs.length > 0) {
-        activeCatalogs = fireCatalogs;
-      } else if (resCatalogs && resCatalogs.length > 0) {
-        activeCatalogs = resCatalogs;
-        resCatalogs.forEach(async (c) => {
-          await saveCatalogToFirebase(c);
-        });
-      }
-      if (activeCatalogs && activeCatalogs.length > 0) {
-        setCatalogs(activeCatalogs);
-        localStorage.setItem('khalab_catalogs', JSON.stringify(activeCatalogs));
+      if (resCatalogs && resCatalogs.length > 0) {
+        setCatalogs(resCatalogs);
+        localStorage.setItem('khalab_catalogs', JSON.stringify(resCatalogs));
       }
 
       // ORDERS
-      const activeOrders = resOrders || [];
-      if (activeOrders) {
-        setOrders(activeOrders);
-        localStorage.setItem('khalab_orders', JSON.stringify(activeOrders));
+      if (resOrders) {
+        setOrders(resOrders);
+        localStorage.setItem('khalab_orders', JSON.stringify(resOrders));
       }
 
       // PROMO CODES
-      let activePromos = promos;
-      if (firePromos && firePromos.length > 0) {
-        activePromos = firePromos;
-      } else if (resPromos && resPromos.length > 0) {
-        activePromos = resPromos;
-        resPromos.forEach(async (pr) => {
-          await savePromoToFirebase(pr);
-        });
-      }
-      if (activePromos) {
-        setPromos(activePromos);
-        localStorage.setItem('khalab_promos', JSON.stringify(activePromos));
+      if (resPromos) {
+        setPromos(resPromos);
+        localStorage.setItem('khalab_promos', JSON.stringify(resPromos));
       }
 
       // BLOCKED CUSTOMERS
-      let activeFakes = fakeCustomers;
-      if (fireFakes && fireFakes.length > 0) {
-        activeFakes = fireFakes;
-      } else if (resFakes && resFakes.length > 0) {
-        activeFakes = resFakes;
-        resFakes.forEach(async (fc) => {
-          await saveFakeCustomerToFirebase(fc);
-        });
-      }
-      if (activeFakes) {
-        setFakeCustomers(activeFakes);
-        localStorage.setItem('khalab_fake_customers', JSON.stringify(activeFakes));
+      if (resFakes) {
+        setFakeCustomers(resFakes);
+        localStorage.setItem('khalab_fake_customers', JSON.stringify(resFakes));
       }
 
       // REVIEWS
-      let activeReviews = reviews;
-      if (fireReviews && fireReviews.length > 0) {
-        activeReviews = fireReviews;
-      } else if (resReviews && resReviews.length > 0) {
-        activeReviews = resReviews;
-        resReviews.forEach(async (rv) => {
-          await saveReviewToFirebase(rv);
-        });
-      }
-      if (activeReviews) {
-        setReviews(activeReviews);
-        localStorage.setItem('khalab_reviews', JSON.stringify(activeReviews));
+      if (resReviews) {
+        setReviews(resReviews);
+        localStorage.setItem('khalab_reviews', JSON.stringify(resReviews));
       }
 
     } catch (err) {
-      console.error("Critical: Could not load real-time dataset from server or Firestore", err);
+      console.error("Critical: Could not load real-time dataset from server", err);
     }
   };
 

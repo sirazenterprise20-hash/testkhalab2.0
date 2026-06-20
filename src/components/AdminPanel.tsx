@@ -59,11 +59,13 @@ export default function AdminPanel({
   const [pPrice, setPPrice] = useState(0);
   const [pOriginalPrice, setPOriginalPrice] = useState(0);
   const [pImage, setPImage] = useState('');
+  const [pImages, setPImages] = useState<string[]>([]); // Additional product images
   const [pVideo, setPVideo] = useState('');
   const [pSizes, setPSizes] = useState<string[]>(['M', 'L', 'XL']);
   const [pStock, setPStock] = useState(10);
   const [pCategory, setPCategory] = useState('');
   const [pFeatured, setPFeatured] = useState(false);
+  const [tempImageUrl, setTempImageUrl] = useState(''); // Temp URL state for appending extra photos
 
   // New Catalog form State
   const [newCatName, setNewCatName] = useState('');
@@ -164,6 +166,7 @@ export default function AdminPanel({
       setPPrice(p.price);
       setPOriginalPrice(p.originalPrice);
       setPImage(p.image);
+      setPImages(p.images || []);
       setPVideo(p.videoUrl || '');
       setPSizes(p.sizes || []);
       setPStock(p.stock);
@@ -176,6 +179,7 @@ export default function AdminPanel({
       setPPrice(1500);
       setPOriginalPrice(1800);
       setPImage('');
+      setPImages([]);
       setPVideo('');
       setPSizes(['M', 'L', 'XL']);
       setPStock(15);
@@ -196,6 +200,23 @@ export default function AdminPanel({
       reader.onloadend = () => {
         if (typeof reader.result === 'string') {
           setPImage(reader.result);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleAdditionalImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 15 * 1024 * 1024) {
+        alert("Image should be under 15MB.");
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        if (typeof reader.result === 'string') {
+          setPImages(prev => [...prev, reader.result as string]);
         }
       };
       reader.readAsDataURL(file);
@@ -265,6 +286,7 @@ export default function AdminPanel({
       price: pPrice,
       originalPrice: pOriginalPrice,
       image: pImage || 'https://images.unsplash.com/photo-1523381210434-271e8be1f52b',
+      images: pImages,
       videoUrl: pVideo,
       sizes: pSizes,
       stock: pStock,
@@ -1616,6 +1638,75 @@ export default function AdminPanel({
                     onChange={(e) => setPImage(e.target.value)}
                     className="w-full bg-white border border-gray-200 rounded-lg p-2 focus:ring-1 focus:ring-[var(--primary)] outline-none font-mono text-[10px]"
                   />
+                </div>
+              </div>
+
+              {/* ADDITIONAL PRODUCT IMAGES (MULTIPLE PHOTOS) */}
+              <div className="border-t border-gray-100 pt-3">
+                <label className="text-[10px] font-bold text-gray-500 block mb-1 uppercase font-mono">
+                  Additional Product Photos (Gallery / Multiple Images)
+                </label>
+
+                {/* Grid preview of currently uploaded/pasted additional photos */}
+                {pImages.length > 0 && (
+                  <div id="additional-photos-preview-panel" className="grid grid-cols-5 gap-2 mb-3 bg-gray-50 p-2 rounded-xl border border-gray-100">
+                    {pImages.map((imgUrl, index) => (
+                      <div key={index} className="relative group aspect-[4/5] bg-white rounded border overflow-hidden flex-shrink-0 shadow-sm">
+                        <img src={imgUrl} className="w-full h-full object-cover object-top" referrerPolicy="no-referrer" />
+                        <button
+                          type="button"
+                          onClick={() => setPImages(prev => prev.filter((_, idx) => idx !== index))}
+                          className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white transition-opacity duration-150 cursor-pointer text-[10px] font-bold font-mono"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Adding interface */}
+                <div className="flex gap-4 items-center bg-gray-50 p-3 rounded-xl border border-gray-100 mb-2 font-mono">
+                  <div className="w-16 h-16 bg-gray-200 rounded-lg border border-dashed border-gray-300 flex items-center justify-center flex-shrink-0 text-gray-400">
+                    <Plus className="w-5 h-5 text-gray-500" />
+                  </div>
+                  <div className="flex-1 space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] text-gray-500 font-semibold">Select More Files:</span>
+                    </div>
+                    <label className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-900 hover:bg-[var(--primary)] text-white hover:text-black font-semibold text-[10px] tracking-wider rounded-lg cursor-pointer transition-colors max-w-fit">
+                      <Plus className="w-3" />
+                      <span>UPLOAD AUXILIARY PHOTO</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleAdditionalImageFileChange}
+                        className="hidden"
+                      />
+                    </label>
+                  </div>
+                </div>
+
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="Or paste direct secondary photo URL and click Add"
+                    value={tempImageUrl}
+                    onChange={(e) => setTempImageUrl(e.target.value)}
+                    className="flex-1 bg-white border border-gray-200 rounded-lg p-2 focus:ring-1 focus:ring-[var(--primary)] outline-none font-mono text-[10px]"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (tempImageUrl.trim()) {
+                        setPImages(prev => [...prev, tempImageUrl.trim()]);
+                        setTempImageUrl('');
+                      }
+                    }}
+                    className="px-3 py-2 bg-[var(--primary)] text-black rounded-lg text-[10px] font-bold uppercase tracking-wider font-mono hover:bg-black hover:text-white transition-colors cursor-pointer"
+                  >
+                    Add URL
+                  </button>
                 </div>
               </div>
 

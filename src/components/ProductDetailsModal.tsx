@@ -27,6 +27,15 @@ export default function ProductDetailsModal({
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState('');
   const [reviewSuccess, setReviewSuccess] = useState(false);
+  const [activeImage, setActiveImage] = useState<string>(product.image);
+
+  // Sync activeImage when product changes
+  React.useEffect(() => {
+    setActiveImage(product.image);
+    setIsPlayingVideo(false);
+  }, [product.id, product.image]);
+
+  const allImages = [product.image, ...(product.images || [])].filter((img): img is string => typeof img === 'string' && img.trim() !== '');
 
   const productReviews = reviews.filter((r) => r.productId === product.id);
   const averageRating = productReviews.length
@@ -82,12 +91,30 @@ export default function ProductDetailsModal({
           ) : (
             <div className="w-full h-full relative aspect-[4/5] flex items-center">
               <img
-                src={product.image}
+                src={activeImage}
                 alt={product.title}
                 referrerPolicy="no-referrer"
                 className="w-full h-full object-cover object-top"
               />
               
+              {/* Product Gallery Thumbnails */}
+              {!isPlayingVideo && allImages.length > 1 && (
+                <div id="product-thumbnails" className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 flex gap-2 overflow-x-auto bg-black/40 backdrop-blur-md p-1.5 rounded-lg max-w-[90%] scrollbar-none">
+                  {allImages.map((img, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => setActiveImage(img)}
+                      className={`w-12 h-12 rounded border-2 transition-all cursor-pointer overflow-hidden flex-shrink-0 ${
+                        activeImage === img ? 'border-[var(--primary)] scale-105 shadow-md' : 'border-transparent opacity-75 hover:opacity-100'
+                      }`}
+                    >
+                      <img src={img} className="w-full h-full object-cover object-top" referrerPolicy="no-referrer" />
+                    </button>
+                  ))}
+                </div>
+              )}
+
               {product.videoUrl && (
                 <button
                   id="play-video-btn"

@@ -5,6 +5,7 @@ export interface Product {
   price: number;
   originalPrice: number;
   image: string;
+  images?: string[]; // Additional product images
   videoUrl?: string;
   sizes: string[];
   stock: number;
