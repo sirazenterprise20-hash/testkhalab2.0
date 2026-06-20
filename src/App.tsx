@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   ShoppingBag, Search, Heart, User, Settings, Info, 
   MapPin, Phone, Facebook, Instagram, ShieldCheck, X, 
   Check, ArrowRight, Truck, RefreshCw, Award, Ticket, 
-  Bell, Star, Play, Flame, ExternalLink, ShieldAlert, KeyRound, CheckCircle2, Lock
+  Bell, Star, Play, Flame, ExternalLink, ShieldAlert, KeyRound, CheckCircle2, Lock,
+  ChevronLeft, ChevronRight, LayoutGrid, SlidersHorizontal
 } from 'lucide-react';
 import { Product, Catalog, Order, Review, FakeCustomer, PromoCode, SiteConfig } from './types';
 import ProductCard from './components/ProductCard';
@@ -32,6 +33,169 @@ import {
   getReviewsFromFirebase,
   saveReviewToFirebase
 } from './lib/firebase';
+
+interface CategoryBlockProps {
+  title: string;
+  categorySlug: string;
+  products: Product[];
+  layoutMode: 'grid' | 'slider';
+  reviews: Review[];
+  favorites: string[];
+  onViewDetails: (product: Product) => void;
+  onAddToCart: (product: Product, size: string) => void;
+  onToggleFavorite: (id: string) => void;
+}
+
+const CategoryBlock: React.FC<CategoryBlockProps> = ({
+  title,
+  categorySlug,
+  products,
+  layoutMode,
+  reviews,
+  favorites,
+  onViewDetails,
+  onAddToCart,
+  onToggleFavorite
+}) => {
+  const rowRef = useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(true);
+
+  const checkScroll = () => {
+    if (rowRef.current) {
+      const { scrollLeft, scrollWidth, clientWidth } = rowRef.current;
+      setCanScrollLeft(scrollLeft > 10);
+      setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 10);
+    }
+  };
+
+  useEffect(() => {
+    const el = rowRef.current;
+    if (el && layoutMode === 'slider') {
+      el.addEventListener('scroll', checkScroll);
+      checkScroll();
+      const timeoutId = setTimeout(checkScroll, 500);
+      window.addEventListener('resize', checkScroll);
+      return () => {
+        el.removeEventListener('scroll', checkScroll);
+        window.removeEventListener('resize', checkScroll);
+        clearTimeout(timeoutId);
+      };
+    }
+  }, [layoutMode, products]);
+
+  const scrollRight = () => {
+    if (rowRef.current) {
+      const { clientWidth } = rowRef.current;
+      rowRef.current.scrollBy({ left: clientWidth * 0.75, behavior: 'smooth' });
+      setTimeout(checkScroll, 400);
+    }
+  };
+
+  const scrollLeftClick = () => {
+    if (rowRef.current) {
+      const { clientWidth } = rowRef.current;
+      rowRef.current.scrollBy({ left: -clientWidth * 0.75, behavior: 'smooth' });
+      setTimeout(checkScroll, 400);
+    }
+  };
+
+  if (products.length === 0) return null;
+
+  return (
+    <div className="mb-14 pb-10 border-b border-gray-100 last:border-0 last:pb-0">
+      {/* Category Subheader */}
+      <div className="flex justify-between items-center mb-5 px-1">
+        <h3 className="font-serif text-lg font-bold text-gray-900 uppercase tracking-tight flex items-center gap-2.5">
+          <span className="w-1.5 h-6 bg-[var(--primary)] rounded-full"></span>
+          <span>{title}</span>
+          <span className="bg-gray-100 text-gray-600 font-mono text-[9px] px-2 py-0.5 rounded-full font-bold">
+            {products.length} {products.length === 1 ? 'Item' : 'Items'} Available
+          </span>
+        </h3>
+      </div>
+
+      {layoutMode === 'slider' ? (
+        <div className="relative select-none">
+          {/* Left Scroll Control */}
+          {canScrollLeft && (
+            <button
+              type="button"
+              onClick={scrollLeftClick}
+              className="absolute left-[-16px] top-1/2 -translate-y-1/2 z-10 w-9 h-9 bg-white hover:bg-[var(--primary)] hover:text-black hover:border-[var(--primary)] rounded-full border border-gray-200 flex items-center justify-center shadow-md transition-all duration-200 cursor-pointer text-gray-700"
+              aria-label={`Scroll ${title} left`}
+            >
+              <ChevronLeft className="w-4.5 h-4.5" />
+            </button>
+          )}
+
+          {/* Horizontally scrollable track */}
+          <div
+            ref={rowRef}
+            className="flex gap-6 overflow-x-auto scroll-smooth py-3 px-1 no-scrollbar snap-x snap-mandatory"
+            style={{ WebkitOverflowScrolling: 'touch' }}
+          >
+            {products.map((product) => {
+              const prodReviews = reviews.filter(r => r.productId === product.id);
+              const avg = prodReviews.length 
+                ? prodReviews.reduce((sum, r) => sum + r.rating, 0) / prodReviews.length
+                : 4.8;
+
+              return (
+                <div
+                  key={product.id}
+                  className="w-[280px] sm:w-[320px] snap-start flex-shrink-0"
+                >
+                  <ProductCard
+                    product={product}
+                    onViewDetails={onViewDetails}
+                    onAddToCart={onAddToCart}
+                    isFavorite={favorites.includes(product.id)}
+                    onToggleFavorite={onToggleFavorite}
+                    averageRating={avg}
+                  />
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Right Scroll Control */}
+          {canScrollRight && (
+            <button
+              type="button"
+              onClick={scrollRight}
+              className="absolute right-[-16px] top-1/2 -translate-y-1/2 z-10 w-9 h-9 bg-white hover:bg-[var(--primary)] hover:text-black hover:border-[var(--primary)] rounded-full border border-gray-200 flex items-center justify-center shadow-md transition-all duration-200 cursor-pointer text-gray-700"
+              aria-label={`Scroll ${title} right`}
+            >
+              <ChevronRight className="w-4.5 h-4.5" />
+            </button>
+          )}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+          {products.map((product) => {
+            const prodReviews = reviews.filter(r => r.productId === product.id);
+            const avg = prodReviews.length 
+              ? prodReviews.reduce((sum, r) => sum + r.rating, 0) / prodReviews.length
+              : 4.8;
+
+            return (
+              <ProductCard
+                key={product.id}
+                product={product}
+                onViewDetails={onViewDetails}
+                onAddToCart={onAddToCart}
+                isFavorite={favorites.includes(product.id)}
+                onToggleFavorite={onToggleFavorite}
+                averageRating={avg}
+              />
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+};
 
 export default function App() {
   // Database States loaded from Server API
@@ -126,6 +290,7 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [sortBy, setSortBy] = useState<'default' | 'price-low' | 'price-high' | 'featured'>('default');
+  const [layoutMode, setLayoutMode] = useState<'grid' | 'slider'>('slider');
 
   // Modals state
   const [selectedProductForModal, setSelectedProductForModal] = useState<Product | null>(null);
@@ -1187,6 +1352,36 @@ export default function App() {
               <Search className="w-3.5 h-3.5 text-gray-400 absolute right-2.5 top-2" />
             </div>
 
+            {/* Layout Mode Toggler */}
+            <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-xl">
+              <button
+                type="button"
+                onClick={() => setLayoutMode('slider')}
+                className={`py-1 px-3 rounded-lg text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-all duration-200 ${
+                  layoutMode === 'slider'
+                    ? 'bg-gray-900 text-white shadow-sm'
+                    : 'text-gray-500 hover:text-gray-900 hover:bg-gray-200/50'
+                }`}
+                title="Slider Layout"
+              >
+                <SlidersHorizontal className="w-3.5 h-3.5" />
+                <span>Slider Style</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setLayoutMode('grid')}
+                className={`py-1 px-3 rounded-lg text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-all duration-200 ${
+                  layoutMode === 'grid'
+                    ? 'bg-gray-900 text-white shadow-sm'
+                    : 'text-gray-500 hover:text-gray-900 hover:bg-gray-200/50'
+                }`}
+                title="Grid Layout"
+              >
+                <LayoutGrid className="w-3.5 h-3.5" />
+                <span>Grid Style</span>
+              </button>
+            </div>
+
             {/* Sorting mechanism */}
             <select
               value={sortBy}
@@ -1213,28 +1408,39 @@ export default function App() {
               Reset Filters
             </button>
           </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {sortedProducts.map((product) => {
-              // compute product average ratings
-              const prodReviews = reviews.filter(r => r.productId === product.id);
-              const avg = prodReviews.length 
-                ? prodReviews.reduce((sum, r) => sum + r.rating, 0) / prodReviews.length
-                : 4.8;
-
+        ) : selectedCategory === 'all' ? (
+          <div className="space-y-14">
+            {catalogs.map((catalog) => {
+              const categoryProducts = sortedProducts.filter(p => p.category === catalog.slug);
               return (
-                <ProductCard
-                  key={product.id}
-                  product={product}
+                <CategoryBlock
+                  key={catalog.id}
+                  title={catalog.name}
+                  categorySlug={catalog.slug}
+                  products={categoryProducts}
+                  layoutMode={layoutMode}
+                  reviews={reviews}
+                  favorites={favorites}
                   onViewDetails={logProductView}
                   onAddToCart={handleAddToCart}
-                  isFavorite={favorites.includes(product.id)}
                   onToggleFavorite={handleToggleFavorite}
-                  averageRating={avg}
                 />
               );
             })}
           </div>
+        ) : (
+          <CategoryBlock
+            key={selectedCategory}
+            title={catalogs.find(c => c.slug === selectedCategory)?.name || "Collection"}
+            categorySlug={selectedCategory}
+            products={sortedProducts}
+            layoutMode={layoutMode}
+            reviews={reviews}
+            favorites={favorites}
+            onViewDetails={logProductView}
+            onAddToCart={handleAddToCart}
+            onToggleFavorite={handleToggleFavorite}
+          />
         )}
 
         {/* 7. PERSONALIZED RECOMMENDATION SECTION BASED ON CUSTOMER VIEWS */}

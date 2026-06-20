@@ -3,9 +3,31 @@ import path from "path";
 import fs from "fs";
 import { createServer as createViteServer } from "vite";
 import { Product, Order, Catalog, Review, FakeCustomer, PromoCode, SiteConfig } from "./src/types";
+import { initializeApp } from "firebase/app";
+import { getFirestore, doc, getDoc, setDoc, getDocs, collection, deleteDoc } from "firebase/firestore";
 
 // Setup database file path
 const DB_FILE = path.join(process.cwd(), "db.json");
+
+// Setup Firebase Firestore connection
+const CONFIG_PATH = path.join(process.cwd(), "firebase-applet-config.json");
+let firebaseConfig: any = null;
+let firestoreDb: any = null;
+
+try {
+  if (fs.existsSync(CONFIG_PATH)) {
+    firebaseConfig = JSON.parse(fs.readFileSync(CONFIG_PATH, "utf-8"));
+    const app = initializeApp(firebaseConfig);
+    firestoreDb = firebaseConfig.firestoreDatabaseId
+      ? getFirestore(app, firebaseConfig.firestoreDatabaseId)
+      : getFirestore(app);
+    console.log("[KHALAB Firebase Backend] Initialized Firestore connection successfully.");
+  } else {
+    console.warn("[KHALAB Firebase Backend] Warning: firebase-applet-config.json not found.");
+  }
+} catch (error) {
+  console.error("[KHALAB Firebase Backend] Error initializing firebase:", error);
+}
 
 // Default Pre-loaded items
 const DEFAULT_CATALOGS: Catalog[] = [
@@ -251,6 +273,221 @@ function saveDb(data: DbSchema) {
   }
 }
 
+// Firestore synchronization system
+async function syncFromFirestore(dbState: DbSchema): Promise<DbSchema> {
+  if (!firestoreDb) return dbState;
+  
+  console.log("[KHALAB Firebase Backend] Synchronizing dataset from Firestore...");
+  try {
+    // 1. Config
+    const configSnap = await getDoc(doc(firestoreDb, "config", "main"));
+    if (configSnap.exists()) {
+      dbState.config = { ...dbState.config, ...configSnap.data() as SiteConfig };
+    } else {
+      console.log("[KHALAB Firebase Backend] Config not found in Firestore, bootstrapping default...");
+      await setDoc(doc(firestoreDb, "config", "main"), dbState.config);
+    }
+
+    // 2. Catalogs
+    const catalogsSnap = await getDocs(collection(firestoreDb, "catalogs"));
+    if (!catalogsSnap.empty) {
+      const catalogsList: Catalog[] = [];
+      catalogsSnap.forEach(d => {
+        catalogsList.push(d.data() as Catalog);
+      });
+      dbState.catalogs = catalogsList;
+    } else {
+      console.log("[KHALAB Firebase Backend] Catalogs empty in Firestore, bootstrapping defaults...");
+      for (const cat of dbState.catalogs) {
+        await setDoc(doc(firestoreDb, "catalogs", cat.id), cat);
+      }
+    }
+
+    // 3. Products
+    const productsSnap = await getDocs(collection(firestoreDb, "products"));
+    if (!productsSnap.empty) {
+      const productsList: Product[] = [];
+      productsSnap.forEach(d => {
+        productsList.push(d.data() as Product);
+      });
+      dbState.products = productsList;
+    } else {
+      console.log("[KHALAB Firebase Backend] Products empty in Firestore, bootstrapping defaults...");
+      for (const prod of dbState.products) {
+        await setDoc(doc(firestoreDb, "products", prod.id), prod);
+      }
+    }
+
+    // 4. Orders
+    const ordersSnap = await getDocs(collection(firestoreDb, "orders"));
+    if (!ordersSnap.empty) {
+      const ordersList: Order[] = [];
+      ordersSnap.forEach(d => {
+        ordersList.push(d.data() as Order);
+      });
+      // Sort orders by createdAt descending
+      ordersList.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+      dbState.orders = ordersList;
+    } else {
+      console.log("[KHALAB Firebase Backend] Orders empty in Firestore, bootstrapping default...");
+      for (const ord of dbState.orders) {
+        await setDoc(doc(firestoreDb, "orders", ord.id), ord);
+      }
+    }
+
+    // 5. Reviews
+    const reviewsSnap = await getDocs(collection(firestoreDb, "reviews"));
+    if (!reviewsSnap.empty) {
+      const reviewsList: Review[] = [];
+      reviewsSnap.forEach(d => {
+        reviewsList.push(d.data() as Review);
+      });
+      dbState.reviews = reviewsList;
+    } else {
+      console.log("[KHALAB Firebase Backend] Reviews empty in Firestore, bootstrapping defaults...");
+      for (const rev of dbState.reviews) {
+        await setDoc(doc(firestoreDb, "reviews", rev.id), rev);
+      }
+    }
+
+    // 6. Promos
+    const promosSnap = await getDocs(collection(firestoreDb, "promos"));
+    if (!promosSnap.empty) {
+      const promosList: PromoCode[] = [];
+      promosSnap.forEach(d => {
+        promosList.push(d.data() as PromoCode);
+      });
+      dbState.promoCodes = promosList;
+    } else {
+      console.log("[KHALAB Firebase Backend] Promos empty in Firestore, bootstrapping defaults...");
+      for (const promo of dbState.promoCodes) {
+        await setDoc(doc(firestoreDb, "promos", promo.id || promo.code), promo);
+      }
+    }
+
+    // 7. Fake Customers
+    const fakeSnap = await getDocs(collection(firestoreDb, "fakeCustomers"));
+    if (!fakeSnap.empty) {
+      const fakeList: FakeCustomer[] = [];
+      fakeSnap.forEach(d => {
+        fakeList.push(d.data() as FakeCustomer);
+      });
+      dbState.fakeCustomers = fakeList;
+    } else {
+      console.log("[KHALAB Firebase Backend] Fake customers empty in Firestore, bootstrapping defaults...");
+      for (const fc of dbState.fakeCustomers) {
+        await setDoc(doc(firestoreDb, "fakeCustomers", fc.id || fc.phone), fc);
+      }
+    }
+
+    console.log("[KHALAB Firebase Backend] Firestore synchronization completed successfully!");
+  } catch (err) {
+    console.error("[KHALAB Firebase Backend] Error synchronizing from Firestore:", err);
+  }
+
+  return dbState;
+}
+
+// Firestore write update helpers
+async function firestoreWriteConfig(config: SiteConfig) {
+  if (!firestoreDb) return;
+  try {
+    await setDoc(doc(firestoreDb, "config", "main"), config);
+  } catch (err) {
+    console.error("Firestore write config error:", err);
+  }
+}
+
+async function firestoreWriteProduct(product: Product) {
+  if (!firestoreDb) return;
+  try {
+    await setDoc(doc(firestoreDb, "products", product.id), product);
+  } catch (err) {
+    console.error("Firestore write product error:", err);
+  }
+}
+
+async function firestoreDeleteProduct(id: string) {
+  if (!firestoreDb) return;
+  try {
+    await deleteDoc(doc(firestoreDb, "products", id));
+  } catch (err) {
+    console.error("Firestore delete product error:", err);
+  }
+}
+
+async function firestoreWriteCatalog(catalog: Catalog) {
+  if (!firestoreDb) return;
+  try {
+    await setDoc(doc(firestoreDb, "catalogs", catalog.id), catalog);
+  } catch (err) {
+    console.error("Firestore write catalog error:", err);
+  }
+}
+
+async function firestoreDeleteCatalog(id: string) {
+  if (!firestoreDb) return;
+  try {
+    await deleteDoc(doc(firestoreDb, "catalogs", id));
+  } catch (err) {
+    console.error("Firestore delete catalog error:", err);
+  }
+}
+
+async function firestoreWriteOrder(order: Order) {
+  if (!firestoreDb) return;
+  try {
+    await setDoc(doc(firestoreDb, "orders", order.id), order);
+  } catch (err) {
+    console.error("Firestore write order error:", err);
+  }
+}
+
+async function firestoreWriteReview(review: Review) {
+  if (!firestoreDb) return;
+  try {
+    await setDoc(doc(firestoreDb, "reviews", review.id), review);
+  } catch (err) {
+    console.error("Firestore write review error:", err);
+  }
+}
+
+async function firestoreWriteFakeCustomer(fc: FakeCustomer) {
+  if (!firestoreDb) return;
+  try {
+    await setDoc(doc(firestoreDb, "fakeCustomers", fc.id || fc.phone), fc);
+  } catch (err) {
+    console.error("Firestore write fakeCustomer error:", err);
+  }
+}
+
+async function firestoreDeleteFakeCustomer(id: string) {
+  if (!firestoreDb) return;
+  try {
+    await deleteDoc(doc(firestoreDb, "fakeCustomers", id));
+  } catch (err) {
+    console.error("Firestore delete fakeCustomer error:", err);
+  }
+}
+
+async function firestoreWritePromo(promo: PromoCode) {
+  if (!firestoreDb) return;
+  try {
+    await setDoc(doc(firestoreDb, "promos", promo.id || promo.code), promo);
+  } catch (err) {
+    console.error("Firestore write promo error:", err);
+  }
+}
+
+async function firestoreDeletePromo(id: string) {
+  if (!firestoreDb) return;
+  try {
+    await deleteDoc(doc(firestoreDb, "promos", id));
+  } catch (err) {
+    console.error("Firestore delete promo error:", err);
+  }
+}
+
 async function startServer() {
   const app = express();
   const PORT = 3000;
@@ -261,6 +498,9 @@ async function startServer() {
 
   // Initialize DB
   let db = loadDb();
+  
+  // Connect and pull dataset from Cloud Firestore
+  db = await syncFromFirestore(db);
 
   // --- API Endpoints ---
 
@@ -272,6 +512,7 @@ async function startServer() {
   app.put("/api/config", (req, res) => {
     db.config = { ...db.config, ...req.body };
     saveDb(db);
+    firestoreWriteConfig(db.config);
     res.json({ success: true, config: db.config });
   });
 
@@ -292,12 +533,14 @@ async function startServer() {
     };
     db.catalogs.push(newCatalog);
     saveDb(db);
+    firestoreWriteCatalog(newCatalog);
     res.status(201).json(newCatalog);
   });
 
   app.delete("/api/catalogs/:id", (req, res) => {
     db.catalogs = db.catalogs.filter((c) => c.id !== req.params.id);
     saveDb(db);
+    firestoreDeleteCatalog(req.params.id);
     res.json({ success: true });
   });
 
@@ -329,6 +572,7 @@ async function startServer() {
 
     db.products.push(newProduct);
     saveDb(db);
+    firestoreWriteProduct(newProduct);
     res.status(201).json(newProduct);
   });
 
@@ -355,12 +599,14 @@ async function startServer() {
     };
 
     saveDb(db);
+    firestoreWriteProduct(db.products[index]);
     res.json({ success: true, product: db.products[index] });
   });
 
   app.delete("/api/products/:id", (req, res) => {
     db.products = db.products.filter((p) => p.id !== req.params.id);
     saveDb(db);
+    firestoreDeleteProduct(req.params.id);
     res.json({ success: true });
   });
 
@@ -428,6 +674,16 @@ async function startServer() {
 
     db.orders.unshift(newOrder);
     saveDb(db);
+    firestoreWriteOrder(newOrder);
+    
+    // Update product stock changes in Firestore
+    for (const item of items) {
+      const product = db.products.find((p) => p.id === item.productId);
+      if (product) {
+        firestoreWriteProduct(product);
+      }
+    }
+    
     res.status(201).json({ success: true, order: newOrder });
   });
 
@@ -468,6 +724,16 @@ async function startServer() {
     };
 
     saveDb(db);
+    firestoreWriteOrder(db.orders[index]);
+    
+    // Sync any product stock updates to Firestore
+    for (const item of db.orders[index].items) {
+      const product = db.products.find((p) => p.id === item.productId);
+      if (product) {
+        firestoreWriteProduct(product);
+      }
+    }
+    
     res.json({ success: true, order: db.orders[index] });
   });
 
@@ -493,6 +759,7 @@ async function startServer() {
 
     db.reviews.push(newReview);
     saveDb(db);
+    firestoreWriteReview(newReview);
     res.status(201).json(newReview);
   });
 
@@ -523,10 +790,12 @@ async function startServer() {
       const isFakeName = o.customerName.toLowerCase().trim() === name.toLowerCase().trim();
       if (isFakePhone || isFakeName) {
         o.isFakeCustomerReported = true;
+        firestoreWriteOrder(o);
       }
     });
 
     saveDb(db);
+    firestoreWriteFakeCustomer(newFake);
     res.status(201).json(newFake);
   });
 
@@ -541,10 +810,12 @@ async function startServer() {
         const stillFakeName = db.fakeCustomers.some((f) => o.customerName.toLowerCase().trim() === f.name.toLowerCase().trim());
         if (!stillFakePhone && !stillFakeName) {
           o.isFakeCustomerReported = false;
+          firestoreWriteOrder(o);
         }
       });
 
       saveDb(db);
+      firestoreDeleteFakeCustomer(req.params.id);
     }
     res.json({ success: true });
   });
@@ -569,12 +840,14 @@ async function startServer() {
 
     db.promoCodes.push(newPromo);
     saveDb(db);
+    firestoreWritePromo(newPromo);
     res.status(201).json(newPromo);
   });
 
   app.delete("/api/promos/:id", (req, res) => {
     db.promoCodes = db.promoCodes.filter((p) => p.id !== req.params.id);
     saveDb(db);
+    firestoreDeletePromo(req.params.id);
     res.json({ success: true });
   });
 
