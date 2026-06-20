@@ -151,3 +151,187 @@ export async function getOrdersByPhoneFromFirebase(phone: string) {
     return [];
   }
 }
+
+// --- ADDITIONAL FIRESTORE PERSISTENT BACKEND SYSTEM ---
+
+// 1. Site Config Helpers
+export async function getSiteConfigFromFirebase() {
+  const path = 'config/main';
+  try {
+    const docRef = doc(db, 'config', 'main');
+    const snap = await getDoc(docRef);
+    return snap.exists() ? snap.data() : null;
+  } catch (error) {
+    handleFirestoreError(error, OperationType.GET, path);
+    return null;
+  }
+}
+
+export async function saveSiteConfigToFirebase(config: any) {
+  const path = 'config/main';
+  try {
+    await setDoc(doc(db, 'config', 'main'), config);
+    console.log("Site config backed up to Firestore.");
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, path);
+  }
+}
+
+// 2. Product Helpers
+export async function getProductsFromFirebase() {
+  const path = 'products';
+  try {
+    const snap = await getDocs(collection(db, 'products'));
+    const list: any[] = [];
+    snap.forEach(doc => {
+      list.push(doc.data());
+    });
+    return list;
+  } catch (error) {
+    handleFirestoreError(error, OperationType.LIST, path);
+    return [];
+  }
+}
+
+export async function saveProductToFirebase(product: any) {
+  const path = `products/${product.id}`;
+  try {
+    await setDoc(doc(db, 'products', product.id), product);
+    console.log(`Product ${product.id} stored in Firestore.`);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, path);
+  }
+}
+
+export async function deleteProductFromFirebase(id: string) {
+  const path = `products/${id}`;
+  try {
+    const { deleteDoc } = await import('firebase/firestore');
+    await deleteDoc(doc(db, 'products', id));
+    console.log(`Product ${id} deleted from Firestore.`);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, path);
+  }
+}
+
+// 3. Catalog Helpers
+export async function getCatalogsFromFirebase() {
+  const path = 'catalogs';
+  try {
+    const snap = await getDocs(collection(db, 'catalogs'));
+    const list: any[] = [];
+    snap.forEach(doc => list.push(doc.data()));
+    return list;
+  } catch (error) {
+    handleFirestoreError(error, OperationType.LIST, path);
+    return [];
+  }
+}
+
+export async function saveCatalogToFirebase(catalog: any) {
+  const path = `catalogs/${catalog.id}`;
+  try {
+    await setDoc(doc(db, 'catalogs', catalog.id), catalog);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, path);
+  }
+}
+
+export async function deleteCatalogFromFirebase(id: string) {
+  const path = `catalogs/${id}`;
+  try {
+    const { deleteDoc } = await import('firebase/firestore');
+    await deleteDoc(doc(db, 'catalogs', id));
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, path);
+  }
+}
+
+// 4. Promo Helpers
+export async function getPromosFromFirebase() {
+  const path = 'promos';
+  try {
+    const snap = await getDocs(collection(db, 'promos'));
+    const list: any[] = [];
+    snap.forEach(doc => list.push(doc.data()));
+    return list;
+  } catch (error) {
+    handleFirestoreError(error, OperationType.LIST, path);
+    return [];
+  }
+}
+
+export async function savePromoToFirebase(promo: any) {
+  const path = `promos/${promo.id || promo.code}`;
+  try {
+    await setDoc(doc(db, 'promos', promo.id || promo.code), promo);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, path);
+  }
+}
+
+export async function deletePromoFromFirebase(id: string) {
+  const path = `promos/${id}`;
+  try {
+    const { deleteDoc } = await import('firebase/firestore');
+    await deleteDoc(doc(db, 'promos', id));
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, path);
+  }
+}
+
+// 5. Fake Customer Helpers (Blocked phone numbers)
+export async function getFakeCustomersFromFirebase() {
+  const path = 'fakeCustomers';
+  try {
+    const snap = await getDocs(collection(db, 'fakeCustomers'));
+    const list: any[] = [];
+    snap.forEach(doc => list.push(doc.data()));
+    return list;
+  } catch (error) {
+    handleFirestoreError(error, OperationType.LIST, path);
+    return [];
+  }
+}
+
+export async function saveFakeCustomerToFirebase(fc: any) {
+  const path = `fakeCustomers/${fc.id || fc.phone}`;
+  try {
+    await setDoc(doc(db, 'fakeCustomers', fc.id || fc.phone), fc);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, path);
+  }
+}
+
+export async function deleteFakeCustomerFromFirebase(id: string) {
+  const path = `fakeCustomers/${id}`;
+  try {
+    const { deleteDoc } = await import('firebase/firestore');
+    await deleteDoc(doc(db, 'fakeCustomers', id));
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, path);
+  }
+}
+
+// 6. Review Helpers
+export async function getReviewsFromFirebase() {
+  const path = 'reviews';
+  try {
+    const snap = await getDocs(collection(db, 'reviews'));
+    const list: any[] = [];
+    snap.forEach(doc => list.push(doc.data()));
+    return list;
+  } catch (error) {
+    handleFirestoreError(error, OperationType.LIST, path);
+    return [];
+  }
+}
+
+export async function saveReviewToFirebase(review: any) {
+  const path = `reviews/${review.id || Date.now().toString()}`;
+  try {
+    await setDoc(doc(db, 'reviews', review.id || Date.now().toString()), review);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, path);
+  }
+}

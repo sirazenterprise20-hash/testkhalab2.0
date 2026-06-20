@@ -14,37 +14,106 @@ import {
   syncUserProfile, 
   getUserProfile, 
   saveOrderToFirebase, 
-  getOrdersByPhoneFromFirebase 
+  getOrdersByPhoneFromFirebase,
+  getSiteConfigFromFirebase,
+  saveSiteConfigToFirebase,
+  getProductsFromFirebase,
+  saveProductToFirebase,
+  deleteProductFromFirebase,
+  getCatalogsFromFirebase,
+  saveCatalogToFirebase,
+  deleteCatalogFromFirebase,
+  getPromosFromFirebase,
+  savePromoToFirebase,
+  deletePromoFromFirebase,
+  getFakeCustomersFromFirebase,
+  saveFakeCustomerToFirebase,
+  deleteFakeCustomerFromFirebase,
+  getReviewsFromFirebase,
+  saveReviewToFirebase
 } from './lib/firebase';
 
 export default function App() {
   // Database States loaded from Server API
-  const [config, setConfig] = useState<SiteConfig>({
-    brandName: "KHALAB",
-    tagline: "Make your self premium.",
-    address: "Shuvadda, South Keraniganj, Dhaka, Bangladesh.",
-    mobile: "+880171941040",
-    instagramPage: "https://www.instagram.com/khalabfashion",
-    facebookPage: "https://www.facebook.com/khalabfashion",
-    websiteLogoUrl: "",
-    selectedTemplate: "luxury",
-    themePrimary: "#D4AF37",
-    themeSecondary: "#1E1E1E",
-    themeBg: "#FCFCFD",
-    themeText: "#111111",
-    themeAccent: "#8A252C",
-    heroTitle: "FALL IN LOVE WITH PREMIUM FIT",
-    heroSubtitle: "Handcrafted signature menswear tailoring from Dhaka's finest. Order now with bKash, Nagad, Rocket or COD services across Bangladesh.",
-    heroImage: "https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?auto=format&fit=crop&q=80&w=1400",
-    heroCtaText: "Explore Premium Wear"
+  const [config, setConfig] = useState<SiteConfig>(() => {
+    try {
+      const saved = localStorage.getItem('khalab_site_config');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return {
+      brandName: "KHALAB",
+      tagline: "Make your self premium.",
+      address: "Shuvadda, South Keraniganj, Dhaka, Bangladesh.",
+      mobile: "+880171941040",
+      instagramPage: "https://www.instagram.com/khalabfashion",
+      facebookPage: "https://www.facebook.com/khalabfashion",
+      websiteLogoUrl: "",
+      selectedTemplate: "luxury",
+      themePrimary: "#D4AF37",
+      themeSecondary: "#1E1E1E",
+      themeBg: "#FCFCFD",
+      themeText: "#111111",
+      themeAccent: "#8A252C",
+      heroTitle: "FALL IN LOVE WITH PREMIUM FIT",
+      heroSubtitle: "Handcrafted signature menswear tailoring from Dhaka's finest. Order now with bKash, Nagad, Rocket or COD services across Bangladesh.",
+      heroImage: "https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?auto=format&fit=crop&q=80&w=1400",
+      heroCtaText: "Explore Premium Wear"
+    };
   });
 
-  const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
-  const [catalogs, setCatalogs] = useState<Catalog[]>(INITIAL_CATALOGS);
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [reviews, setReviews] = useState<Review[]>([]);
-  const [promos, setPromos] = useState<PromoCode[]>([]);
-  const [fakeCustomers, setFakeCustomers] = useState<FakeCustomer[]>([]);
+  const [products, setProducts] = useState<Product[]>(() => {
+    try {
+      const saved = localStorage.getItem('khalab_products');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+    return INITIAL_PRODUCTS;
+  });
+
+  const [catalogs, setCatalogs] = useState<Catalog[]>(() => {
+    try {
+      const saved = localStorage.getItem('khalab_catalogs');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+    return INITIAL_CATALOGS;
+  });
+
+  const [orders, setOrders] = useState<Order[]>(() => {
+    try {
+      const saved = localStorage.getItem('khalab_orders');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return [];
+  });
+
+  const [reviews, setReviews] = useState<Review[]>(() => {
+    try {
+      const saved = localStorage.getItem('khalab_reviews');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return [];
+  });
+
+  const [promos, setPromos] = useState<PromoCode[]>(() => {
+    try {
+      const saved = localStorage.getItem('khalab_promos');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return [];
+  });
+
+  const [fakeCustomers, setFakeCustomers] = useState<FakeCustomer[]>(() => {
+    try {
+      const saved = localStorage.getItem('khalab_fake_customers');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return [];
+  });
 
   // Local/UI states
   const [cart, setCart] = useState<{ product: Product; size: string; quantity: number }[]>([]);
@@ -105,28 +174,38 @@ export default function App() {
   // Push notifications queue state
   const [notifications, setNotifications] = useState<{ id: string; title: string; message: string; type: 'success' | 'info' | 'promo' }[]>([]);
 
-  // Fetch initial database items from Express REST APIs
+  // Fetch initial database items from Express REST APIs and direct Firestore as absolute backup
   const fetchAllData = async () => {
     const safeFetch = async (url: string) => {
       try {
         const r = await fetch(url);
-        if (!r.ok) {
-          console.warn(`Fetch status ${r.status} for ${url}`);
-          return null;
-        }
+        if (!r.ok) return null;
         const contentType = r.headers.get("content-type");
         if (contentType && contentType.includes("application/json")) {
           return await r.json();
         }
-        console.warn(`Response from ${url} was not application/json format`);
         return null;
       } catch (e) {
-        console.error(`Network or parse error on ${url}:`, e);
+        console.error(`Network error on ${url}:`, e);
         return null;
       }
     };
 
     try {
+      // 1. Fetch from Firestore first for robust persistent storage
+      const [fireConfig, fireProducts, fireCatalogs, firePromos, fireFakes, fireReviews] = await Promise.all([
+        getSiteConfigFromFirebase(),
+        getProductsFromFirebase(),
+        getCatalogsFromFirebase(),
+        getPromosFromFirebase(),
+        getFakeCustomersFromFirebase(),
+        getReviewsFromFirebase()
+      ]).catch(e => {
+        console.warn("Firestore collection loading failure, using local rest apis fallback:", e);
+        return [null, null, null, null, null, null];
+      });
+
+      // 2. Fetch from standard local REST server APIs
       const [resConfig, resProducts, resCatalogs, resOrders, resReviews, resPromos, resFakes] = await Promise.all([
         safeFetch('/api/config'),
         safeFetch('/api/products'),
@@ -137,21 +216,100 @@ export default function App() {
         safeFetch('/api/fake-customers')
       ]);
 
-      if (resConfig) setConfig(resConfig);
+      // --- 3. MERGE STATE / PRIORITIZE FIRESTORE WITH BACKUP REST FALLBACKS ---
       
-      // Update states only if we received non-empty lists from active backend to preserve fallbacks
-      if (resProducts && Array.isArray(resProducts) && resProducts.length > 0) {
-        setProducts(resProducts);
+      // CONFIG
+      const activeConfig = fireConfig || resConfig;
+      if (activeConfig) {
+        setConfig(activeConfig);
+        localStorage.setItem('khalab_site_config', JSON.stringify(activeConfig));
       }
-      if (resCatalogs && Array.isArray(resCatalogs) && resCatalogs.length > 0) {
-        setCatalogs(resCatalogs);
+
+      // PRODUCTS
+      let activeProducts = products;
+      if (fireProducts && fireProducts.length > 0) {
+        activeProducts = fireProducts;
+      } else if (resProducts && resProducts.length > 0) {
+        activeProducts = resProducts;
+        // On first boot, synchronize default items to firestore so they are backed up
+        resProducts.forEach(async (p) => {
+          await saveProductToFirebase(p);
+        });
       }
-      if (resOrders && Array.isArray(resOrders)) setOrders(resOrders);
-      if (resReviews && Array.isArray(resReviews)) setReviews(resReviews);
-      if (resPromos && Array.isArray(resPromos)) setPromos(resPromos);
-      if (resFakes && Array.isArray(resFakes)) setFakeCustomers(resFakes);
+      if (activeProducts && activeProducts.length > 0) {
+        setProducts(activeProducts);
+        localStorage.setItem('khalab_products', JSON.stringify(activeProducts));
+      }
+
+      // CATALOGS
+      let activeCatalogs = catalogs;
+      if (fireCatalogs && fireCatalogs.length > 0) {
+        activeCatalogs = fireCatalogs;
+      } else if (resCatalogs && resCatalogs.length > 0) {
+        activeCatalogs = resCatalogs;
+        resCatalogs.forEach(async (c) => {
+          await saveCatalogToFirebase(c);
+        });
+      }
+      if (activeCatalogs && activeCatalogs.length > 0) {
+        setCatalogs(activeCatalogs);
+        localStorage.setItem('khalab_catalogs', JSON.stringify(activeCatalogs));
+      }
+
+      // ORDERS
+      const activeOrders = resOrders || [];
+      if (activeOrders) {
+        setOrders(activeOrders);
+        localStorage.setItem('khalab_orders', JSON.stringify(activeOrders));
+      }
+
+      // PROMO CODES
+      let activePromos = promos;
+      if (firePromos && firePromos.length > 0) {
+        activePromos = firePromos;
+      } else if (resPromos && resPromos.length > 0) {
+        activePromos = resPromos;
+        resPromos.forEach(async (pr) => {
+          await savePromoToFirebase(pr);
+        });
+      }
+      if (activePromos) {
+        setPromos(activePromos);
+        localStorage.setItem('khalab_promos', JSON.stringify(activePromos));
+      }
+
+      // BLOCKED CUSTOMERS
+      let activeFakes = fakeCustomers;
+      if (fireFakes && fireFakes.length > 0) {
+        activeFakes = fireFakes;
+      } else if (resFakes && resFakes.length > 0) {
+        activeFakes = resFakes;
+        resFakes.forEach(async (fc) => {
+          await saveFakeCustomerToFirebase(fc);
+        });
+      }
+      if (activeFakes) {
+        setFakeCustomers(activeFakes);
+        localStorage.setItem('khalab_fake_customers', JSON.stringify(activeFakes));
+      }
+
+      // REVIEWS
+      let activeReviews = reviews;
+      if (fireReviews && fireReviews.length > 0) {
+        activeReviews = fireReviews;
+      } else if (resReviews && resReviews.length > 0) {
+        activeReviews = resReviews;
+        resReviews.forEach(async (rv) => {
+          await saveReviewToFirebase(rv);
+        });
+      }
+      if (activeReviews) {
+        setReviews(activeReviews);
+        localStorage.setItem('khalab_reviews', JSON.stringify(activeReviews));
+      }
+
     } catch (err) {
-      console.error("Critical: Could not load real-time dataset from server", err);
+      console.error("Critical: Could not load real-time dataset from server or Firestore", err);
     }
   };
 
@@ -510,14 +668,19 @@ export default function App() {
     }
   };
 
-  // Admin Dashboard API actions
+  // Admin Dashboard API actions with double-write Firebase Firestore synchronization
   const handleUpdateConfig = async (newConfig: Partial<SiteConfig>) => {
     try {
+      const updatedConfig = { ...config, ...newConfig };
+      // Save to standard express backend
       const res = await fetch('/api/config', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newConfig)
       });
+      // Synchronize in Firestore globally
+      await saveSiteConfigToFirebase(updatedConfig);
+      
       if (res.ok) fetchAllData();
     } catch (err) {
       console.error(err);
@@ -532,6 +695,9 @@ export default function App() {
         body: JSON.stringify(pPayload)
       });
       if (res.ok) {
+        const createdProduct = await res.json();
+        // Keep in Firestore
+        await saveProductToFirebase(createdProduct);
         fetchAllData();
         triggerNotification("Stock catalog extended", pPayload.title + " introduced into physical collection.");
       }
@@ -548,6 +714,11 @@ export default function App() {
         body: JSON.stringify(pPayload)
       });
       if (res.ok) {
+        const bodyData = await res.json();
+        if (bodyData.product) {
+          // Keep in Firestore
+          await saveProductToFirebase(bodyData.product);
+        }
         fetchAllData();
         triggerNotification("Specifications synchronized", pPayload.title + " database values edited.");
       }
@@ -559,6 +730,8 @@ export default function App() {
   const handleDeleteProduct = async (id: string) => {
     try {
       const res = await fetch(`/api/products/${id}`, { method: 'DELETE' });
+      // Remove from Firestore
+      await deleteProductFromFirebase(id);
       if (res.ok) {
         fetchAllData();
         triggerNotification("Item catalog erased", "Stock unit deleted from live inventory.");
@@ -576,6 +749,9 @@ export default function App() {
         body: JSON.stringify(cPayload)
       });
       if (res.ok) {
+        const createdCatalog = await res.json();
+        // Keep in Firestore
+        await saveCatalogToFirebase(createdCatalog);
         fetchAllData();
         triggerNotification("Section directory mapped", `Catalog /${cPayload.slug} is now live.`);
       }
@@ -587,6 +763,8 @@ export default function App() {
   const handleDeleteCatalog = async (id: string) => {
     try {
       const res = await fetch(`/api/catalogs/${id}`, { method: 'DELETE' });
+      // Remove from Firestore
+      await deleteCatalogFromFirebase(id);
       if (res.ok) fetchAllData();
     } catch (err) {
       console.error(err);
@@ -600,6 +778,14 @@ export default function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updates)
       });
+      
+      // Update in Firestore
+      const targetOrder = orders.find(o => o.id === id);
+      if (targetOrder) {
+        const synchronizedOrder = { ...targetOrder, ...updates };
+        await saveOrderToFirebase(synchronizedOrder);
+      }
+
       if (res.ok) {
         fetchAllData();
         triggerNotification("Order Log Dispatch", `State of purchase ${id} updated to ${updates.deliveryStatus || 'altered'}.`);
@@ -617,6 +803,9 @@ export default function App() {
         body: JSON.stringify(fcPayload)
       });
       if (res.ok) {
+        const createdFc = await res.json();
+        // Link to Firestore
+        await saveFakeCustomerToFirebase(createdFc);
         fetchAllData();
         triggerNotification("Fraud record created", `Phone blocklisted: ${fcPayload.phone}`, "info");
       }
@@ -628,6 +817,8 @@ export default function App() {
   const handleDeleteFakeCustomer = async (id: string) => {
     try {
       const res = await fetch(`/api/fake-customers/${id}`, { method: 'DELETE' });
+      // Remove from Firestore
+      await deleteFakeCustomerFromFirebase(id);
       if (res.ok) fetchAllData();
     } catch (err) {
       console.error(err);
@@ -642,6 +833,9 @@ export default function App() {
         body: JSON.stringify(prPayload)
       });
       if (res.ok) {
+        const createdPromo = await res.json();
+        // Save to Firestore
+        await savePromoToFirebase(createdPromo);
         fetchAllData();
         triggerNotification("New discount launched", `Coupon ${prPayload.code} (${prPayload.discountPercent}%) active!`);
       }
@@ -653,6 +847,8 @@ export default function App() {
   const handleDeletePromo = async (id: string) => {
     try {
       const res = await fetch(`/api/promos/${id}`, { method: 'DELETE' });
+      // Remove from Firestore
+      await deletePromoFromFirebase(id);
       if (res.ok) fetchAllData();
     } catch (err) {
       console.error(err);

@@ -57,5 +57,41 @@ service cloud.firestore {
       allow list: if true; // For listing customer's local list of orders
       allow delete: if false; // Deletions strictly forbidden
     }
+
+    // Site Config Collection Rule
+    match /config/{configId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // Clothing Products Collection Rule
+    match /products/{productId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // Catalogs Collection Rule
+    match /catalogs/{catalogId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // Promotions Collection Rule
+    match /promos/{promoId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // Blocked/Fake Customers Collection Rule
+    match /fakeCustomers/{fakeCustomerId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // Reviews Collection Rule
+    match /reviews/{reviewId} {
+      allow read: if true;
+      allow write: if true;
+    }
   }
 }

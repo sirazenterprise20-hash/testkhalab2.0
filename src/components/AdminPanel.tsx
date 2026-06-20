@@ -185,6 +185,23 @@ export default function AdminPanel({
     setIsProductModalOpen(true);
   };
 
+  const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 15 * 1024 * 1024) {
+        alert("Image should be under 15MB.");
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        if (typeof reader.result === 'string') {
+          setPImage(reader.result);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleProductSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!pCategory) {
@@ -1389,15 +1406,59 @@ export default function AdminPanel({
               </div>
 
               <div>
-                <label className="text-[10px] font-bold text-gray-500 block mb-1">CLOTHING REPRESENTATIVE IMAGE URL *</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="https://images.unsplash.com/..."
-                  value={pImage}
-                  onChange={(e) => setPImage(e.target.value)}
-                  className="w-full bg-white border border-gray-200 rounded-lg p-2 focus:ring-1 focus:ring-[var(--primary)] outline-none font-mono"
-                />
+                <label className="text-[10px] font-bold text-gray-500 block mb-1">PRODUCT IMAGE (IMAGE URL OR LOCAL FILE UPLOAD) *</label>
+                
+                <div className="flex gap-4 items-center bg-gray-50 p-3 rounded-xl border border-gray-100 mb-2">
+                  {pImage ? (
+                    <div className="relative group w-16 h-20 bg-white rounded-lg border overflow-hidden flex-shrink-0">
+                      <img
+                        src={pImage}
+                        alt="Preview"
+                        className="w-full h-full object-cover"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setPImage('')}
+                        className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white transition-opacity duration-150 cursor-pointer text-[10px] font-bold"
+                      >
+                        Reset
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="w-16 h-20 bg-gray-200 rounded-lg border border-dashed border-gray-300 flex items-center justify-center flex-shrink-0 text-gray-400">
+                      <Image className="w-5 h-5" />
+                    </div>
+                  )}
+
+                  <div className="flex-1 space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] text-gray-500 font-semibold font-mono">Upload Local File:</span>
+                    </div>
+                    <label className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-900 hover:bg-[var(--primary)] text-white hover:text-black font-semibold text-[10px] font-mono tracking-wider rounded-lg cursor-pointer transition-colors max-w-fit">
+                      <Plus className="w-3" />
+                      <span>SELECT IMAGE FILE</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleImageFileChange}
+                        className="hidden"
+                      />
+                    </label>
+                    <p className="text-[9px] text-gray-400 font-sans">Accepts PNG, JPG, JPEG, WEBP files.</p>
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <span className="text-[9px] text-gray-400 font-mono block">OR PASTE DIRECT WEB URL:</span>
+                  <input
+                    type="text"
+                    required
+                    placeholder="https://images.unsplash.com/... or base64 data"
+                    value={pImage}
+                    onChange={(e) => setPImage(e.target.value)}
+                    className="w-full bg-white border border-gray-200 rounded-lg p-2 focus:ring-1 focus:ring-[var(--primary)] outline-none font-mono text-[10px]"
+                  />
+                </div>
               </div>
 
               <div>

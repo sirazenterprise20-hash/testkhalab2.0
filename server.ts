@@ -256,7 +256,8 @@ async function startServer() {
   const PORT = 3000;
 
   // Middleware
-  app.use(express.json());
+  app.use(express.json({ limit: "20mb" }));
+  app.use(express.urlencoded({ limit: "20mb", extended: true }));
 
   // Initialize DB
   let db = loadDb();
