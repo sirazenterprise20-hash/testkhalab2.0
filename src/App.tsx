@@ -9,6 +9,7 @@ import { Product, Catalog, Order, Review, FakeCustomer, PromoCode, SiteConfig } 
 import ProductCard from './components/ProductCard';
 import ProductDetailsModal from './components/ProductDetailsModal';
 import AdminPanel from './components/AdminPanel';
+import { INITIAL_PRODUCTS, INITIAL_CATALOGS } from './data';
 import { 
   syncUserProfile, 
   getUserProfile, 
@@ -38,8 +39,8 @@ export default function App() {
     heroCtaText: "Explore Premium Wear"
   });
 
-  const [products, setProducts] = useState<Product[]>([]);
-  const [catalogs, setCatalogs] = useState<Catalog[]>([]);
+  const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
+  const [catalogs, setCatalogs] = useState<Catalog[]>(INITIAL_CATALOGS);
   const [orders, setOrders] = useState<Order[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [promos, setPromos] = useState<PromoCode[]>([]);
@@ -106,24 +107,49 @@ export default function App() {
 
   // Fetch initial database items from Express REST APIs
   const fetchAllData = async () => {
+    const safeFetch = async (url: string) => {
+      try {
+        const r = await fetch(url);
+        if (!r.ok) {
+          console.warn(`Fetch status ${r.status} for ${url}`);
+          return null;
+        }
+        const contentType = r.headers.get("content-type");
+        if (contentType && contentType.includes("application/json")) {
+          return await r.json();
+        }
+        console.warn(`Response from ${url} was not application/json format`);
+        return null;
+      } catch (e) {
+        console.error(`Network or parse error on ${url}:`, e);
+        return null;
+      }
+    };
+
     try {
       const [resConfig, resProducts, resCatalogs, resOrders, resReviews, resPromos, resFakes] = await Promise.all([
-        fetch('/api/config').then(r => r.json()),
-        fetch('/api/products').then(r => r.json()),
-        fetch('/api/catalogs').then(r => r.json()),
-        fetch('/api/orders').then(r => r.json()),
-        fetch('/api/reviews').then(r => r.json()),
-        fetch('/api/promos').then(r => r.json()),
-        fetch('/api/fake-customers').then(r => r.json())
+        safeFetch('/api/config'),
+        safeFetch('/api/products'),
+        safeFetch('/api/catalogs'),
+        safeFetch('/api/orders'),
+        safeFetch('/api/reviews'),
+        safeFetch('/api/promos'),
+        safeFetch('/api/fake-customers')
       ]);
 
       if (resConfig) setConfig(resConfig);
-      if (resProducts) setProducts(resProducts);
-      if (resCatalogs) setCatalogs(resCatalogs);
-      if (resOrders) setOrders(resOrders);
-      if (resReviews) setReviews(resReviews);
-      if (resPromos) setPromos(resPromos);
-      if (resFakes) setFakeCustomers(resFakes);
+      
+      // Update states only if we received non-empty lists from active backend to preserve fallbacks
+      if (resProducts && Array.isArray(resProducts) && resProducts.length > 0) {
+        setProducts(resProducts);
+      }
+      if (resCatalogs && Array.isArray(resCatalogs) && resCatalogs.length > 0) {
+        setCatalogs(resCatalogs);
+      }
+      if (resOrders && Array.isArray(resOrders)) setOrders(resOrders);
+      if (resReviews && Array.isArray(resReviews)) setReviews(resReviews);
+      if (resPromos && Array.isArray(resPromos)) setPromos(resPromos);
+      if (resFakes && Array.isArray(resFakes)) setFakeCustomers(resFakes);
     } catch (err) {
       console.error("Critical: Could not load real-time dataset from server", err);
     }
