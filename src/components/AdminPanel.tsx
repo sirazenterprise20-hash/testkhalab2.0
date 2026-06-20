@@ -27,6 +27,53 @@ interface AdminPanelProps {
   onClose: () => void;
 }
 
+const compressImage = (file: File, maxWidth = 800, maxHeight = 1000, quality = 0.75): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          }
+        } else {
+          if (height > maxHeight) {
+            width = Math.round((width * maxHeight) / height);
+            height = maxHeight;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          resolve(event.target?.result as string);
+          return;
+        }
+
+        ctx.drawImage(img, 0, 0, width, height);
+        const dataUrl = canvas.toDataURL('image/jpeg', quality);
+        resolve(dataUrl);
+      };
+      img.onerror = () => {
+        reject(new Error('Failed to load image for compression'));
+      };
+      img.src = event.target?.result as string;
+    };
+    reader.onerror = () => {
+      reject(new Error('Failed to read file'));
+    };
+    reader.readAsDataURL(file);
+  });
+};
+
 export default function AdminPanel({
   config,
   onUpdateConfig,
@@ -189,88 +236,63 @@ export default function AdminPanel({
     setIsProductModalOpen(true);
   };
 
-  const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 15 * 1024 * 1024) {
-        alert("Image should be under 15MB.");
-        return;
+      try {
+        const compressed = await compressImage(file, 800, 1000, 0.75);
+        setPImage(compressed);
+      } catch (err) {
+        console.error("Compression error:", err);
       }
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        if (typeof reader.result === 'string') {
-          setPImage(reader.result);
-        }
-      };
-      reader.readAsDataURL(file);
     }
   };
 
-  const handleAdditionalImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAdditionalImageFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 15 * 1024 * 1024) {
-        alert("Image should be under 15MB.");
-        return;
+      try {
+        const compressed = await compressImage(file, 800, 1000, 0.75);
+        setPImages(prev => [...prev, compressed]);
+      } catch (err) {
+        console.error("Compression error:", err);
       }
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        if (typeof reader.result === 'string') {
-          setPImages(prev => [...prev, reader.result as string]);
-        }
-      };
-      reader.readAsDataURL(file);
     }
   };
 
-  const handleLogoFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleLogoFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 15 * 1024 * 1024) {
-        alert("Image should be under 15MB.");
-        return;
+      try {
+        const compressed = await compressImage(file, 400, 400, 0.8);
+        setWebsiteLogoUrl(compressed);
+      } catch (err) {
+        console.error("Compression error:", err);
       }
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        if (typeof reader.result === 'string') {
-          setWebsiteLogoUrl(reader.result);
-        }
-      };
-      reader.readAsDataURL(file);
     }
   };
 
-  const handleHeroFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleHeroFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 15 * 1024 * 1024) {
-        alert("Image should be under 15MB.");
-        return;
+      try {
+        const compressed = await compressImage(file, 1200, 800, 0.7);
+        setHeroImage(compressed);
+      } catch (err) {
+        console.error("Compression error:", err);
       }
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        if (typeof reader.result === 'string') {
-          setHeroImage(reader.result);
-        }
-      };
-      reader.readAsDataURL(file);
     }
   };
 
-  const handlePromoFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePromoFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 15 * 1024 * 1024) {
-        alert("Image should be under 15MB.");
-        return;
+      try {
+        const compressed = await compressImage(file, 1200, 800, 0.7);
+        setPromoBannerImage(compressed);
+      } catch (err) {
+        console.error("Compression error:", err);
       }
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        if (typeof reader.result === 'string') {
-          setPromoBannerImage(reader.result);
-        }
-      };
-      reader.readAsDataURL(file);
     }
   };
 
