@@ -1,9 +1,10 @@
 {
-  "apiKey": "AIzaSyAMcZnS7bUqhJlyHX6nrhwz77idU0DhGdk",
-  "authDomain": "testkhalab2.firebaseapp.com",
-  "projectId": "testkhalab2",
-  "storageBucket": "testkhalab2.firebasestorage.app",
-  "messagingSenderId": "1060621667793",
-  "appId": "1:1060621667793:web:787b2d50956fe4c868e4f0",
-  "firestoreDatabaseId": "(default)"
+  "projectId": "amazing-water-nk8sk",
+  "appId": "1:710954418395:web:3da124623274a2df68ccfe",
+  "apiKey": "AIzaSyA6ZKEFxuF_vTtPXaHmvgR9-P1LaqfT2VI",
+  "authDomain": "amazing-water-nk8sk.firebaseapp.com",
+  "firestoreDatabaseId": "ai-studio-f35bf7a6-9c99-404f-bf16-9114ec0a5007",
+  "storageBucket": "amazing-water-nk8sk.firebasestorage.app",
+  "messagingSenderId": "710954418395",
+  "measurementId": ""
 }
